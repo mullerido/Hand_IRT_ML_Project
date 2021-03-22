@@ -6,8 +6,8 @@ import seaborn as sns
 import matplotlib.patheffects as PathEffects
 
 
-def GetGravityData(allFeatures, normlizeFlag=False, hand=''):
-    folder = r'C:\Projects\Thesis\Feature-Analysis- matlab\Resize Feature\\'
+def get_gravity_data(all_features, normlize_flag=False, hand=''):
+    folder = r'C:\Projects\Hand_IRT_Auto_Ecxtraction\Feature-Analysis- matlab\Resize Feature\\'
 
     files = os.listdir(folder)
     if not hand or hand == 'both':
@@ -25,16 +25,16 @@ def GetGravityData(allFeatures, normlizeFlag=False, hand=''):
         print(file)
         currentFile = folder + file
         currentFeatures = pd.read_excel(currentFile)
-        if normlizeFlag:  # Use the ratio
-            relevant_cols = (currentFeatures.loc[0:18, allFeatures] - currentFeatures.loc[0, allFeatures]) / \
-                            currentFeatures.loc[0, allFeatures]
+        if normlize_flag:  # Use the ratio
+            relevant_cols = (currentFeatures.loc[0:18, all_features] - currentFeatures.loc[0, all_features]) / \
+                            currentFeatures.loc[0, all_features]
             data[ind, :] = relevant_cols.mean(axis=1)
         else:  # Use the actual values
             # relevantCols = currentFeatures.filter(regex='Intence')
-            relevant_cols = currentFeatures.loc[0:18, allFeatures]
+            relevant_cols = currentFeatures.loc[0:18, all_features]
             data[ind, :] = relevant_cols.mean(
-                (currentFeatures.loc[0:18, allFeatures] - currentFeatures.loc[0, allFeatures]) /
-                currentFeatures.loc[0, allFeatures], axis=1)
+                (currentFeatures.loc[0:18, all_features] - currentFeatures.loc[0, all_features]) /
+                currentFeatures.loc[0, all_features], axis=1)
 
         transformData = relevant_cols.values.ravel('F')
         transformDataFrame = pd.DataFrame(transformData).T
@@ -49,8 +49,8 @@ def GetGravityData(allFeatures, normlizeFlag=False, hand=''):
     return grouped_feature, names, subject_id, data
 
 
-def GetStudyData(allFeatures, normlizeFlag=False):
-    folder = r'C:\Projects\Thesis\Feature-Analysis- matlab\Resize Feature\\'
+def get_study_data(all_features, normalize_flag=False):
+    folder = r'C:\Projects\Hand_IRT_Auto_Ecxtraction\Feature-Analysis- matlab\Resize Feature\\'
 
     files = os.listdir(folder)
     # files_xls = [f for f in files if f[-10:] == 'right.xlsx']
@@ -64,12 +64,12 @@ def GetStudyData(allFeatures, normlizeFlag=False):
         print(file)
         currentFile = folder + file
         currentFeatures = pd.read_excel(currentFile)
-        if normlizeFlag:  # Use the ratio
-            relevant_cols = (currentFeatures.loc[0:, allFeatures] - currentFeatures.loc[0, allFeatures]) / \
-                            currentFeatures.loc[0, allFeatures]
+        if normalize_flag:  # Use the ratio
+            relevant_cols = (currentFeatures.loc[0:, all_features] - currentFeatures.loc[0, all_features]) / \
+                            currentFeatures.loc[0, all_features]
         else:  # Use the actual values
             # relevantCols = currentFeatures.filter(regex='Intence')
-            relevant_cols = currentFeatures.loc[0:, allFeatures]
+            relevant_cols = currentFeatures.loc[0:, all_features]
 
         data[ind, :] = relevant_cols.mean(axis=1)
         transformData = relevant_cols.values.ravel('F')
@@ -89,7 +89,7 @@ def GetStudyData(allFeatures, normlizeFlag=False):
 
 def get_hand_fingers_data_relate_to_center(normalize_flag=False, hand=''):
     grouped_feature = pd.DataFrame()
-    folder = r'C:\Projects\Thesis\Feature-Analysis- matlab\Resize Feature\\'
+    folder = r'C:\Projects\Hand_IRT_Auto_Ecxtraction\Feature-Analysis- matlab\Resize Feature\\'
 
     files = os.listdir(folder)
     if not hand or hand == 'both':
@@ -114,7 +114,7 @@ def get_hand_fingers_data_relate_to_center(normalize_flag=False, hand=''):
         relevantFingersCols = np.transpose(currentFeatures.loc[:, allingers].values)
         relevantPalmCols = currentFeatures.loc[:, 'Palm_Center_Intence'].values
         subtract_fingers = relevantFingersCols - relevantPalmCols
-        #subtract_fingers = pd.DataFrame(subtract_fingers)
+        # subtract_fingers = pd.DataFrame(subtract_fingers)
         if normalize_flag:
             relevant_cols = np.transpose(
                 (np.transpose(subtract_fingers[:, :]) - subtract_fingers[:, 0]) / subtract_fingers[:, 0])
@@ -133,6 +133,88 @@ def get_hand_fingers_data_relate_to_center(normalize_flag=False, hand=''):
     subject_id = np.unique(subject_id)
 
     return grouped_feature, names, subject_id
+
+
+def seperate_subjects_by_reaction(data, grouped_feature, normalize_flag, subject_id, names, plot_flag=False):
+    rCol = []
+    for ind in range(len(subject_id)):
+        rCol.append('C' + str(ind))
+
+    # Seperate subjects by their reaction
+    data_mean = data.mean(axis=1, keepdims=True)
+    data_std = data.std(axis=1, keepdims=True)
+    data_mean_std = np.array([data_mean[:, 0] - data_std[:, 0], data_mean[:, 0] + data_std[:, 0]]).T
+
+    positive_reaction_ids = np.array([data_mean_std[:, 0] > 0]).T
+    negative_reaction_ids = np.array([data_mean_std[:, 1] < 0]).T
+    balance_reaction_ids = (positive_reaction_ids == False) & (negative_reaction_ids == False)
+    reactions_ids = np.array([negative_reaction_ids[:, 0], balance_reaction_ids[:, 0], positive_reaction_ids[:, 0]]).T
+    if len(data_mean_std) > 30:
+        positive_reaction_ids = positive_reaction_ids[['r' in s for s in names]]
+        negative_reaction_ids = negative_reaction_ids[['r' in s for s in names]]
+        balance_reaction_ids = balance_reaction_ids[['r' in s for s in names]]
+
+    # Plot the reaction by groups of reactions
+    if plot_flag:
+        fig, ax = plt.subplots()
+        plt.title('Group Comparison', fontsize=20)
+        plt.ylabel('Ratio', fontsize=12)
+        plt.xlabel("Index of time", fontsize=12)
+        grouped_feature_plot = grouped_feature[['r' in s for s in names]]
+
+        groups = [np.where(negative_reaction_ids), np.where(balance_reaction_ids), np.where(positive_reaction_ids)]
+        Legend = ['Negative reaction', 'Balance reaction', 'Possitive reaction']
+        for ind, groupInds in enumerate(groups):
+            if groupInds:
+                tempDF = pd.DataFrame()
+                tempDF = grouped_feature_plot.iloc[groupInds[0], :]
+                tempDFVal = tempDF.values
+                dataByTimes = np.resize(tempDFVal, (tempDFVal.shape[0] * 12, np.shape(data)[1]))
+
+                if not normalize_flag:
+                    for i in range(dataByTimes.shape[0]):
+                        dataByTimes[i, :] = (dataByTimes[i, :] - dataByTimes[i, 0]) / dataByTimes[i, 0]
+                groupMeans = dataByTimes.mean(axis=0)
+                groupStd = dataByTimes.std(axis=0)
+                ax.plot(groupMeans, color=rCol[ind])
+                x = np.linspace(0, len(groupStd) - 1, len(groupStd))
+                ax.fill_between(x, groupMeans - groupStd, groupMeans + groupStd, color=rCol[ind], alpha=0.3)
+
+        plt.legend(Legend[0:ind + 1], loc='center left', bbox_to_anchor=(0, 0.9))
+        plt.show()
+
+    return reactions_ids
+
+
+def get_labels_by_hands_similarity(all_features, grouped_feature=[], subject_id=[], names=[]):
+    if len(grouped_feature) == 0:
+        [grouped_feature, names, subject_id, data] = get_gravity_data(all_features, True)
+
+    plot_flag = False
+    labels = seperate_subjects_by_reaction(data, grouped_feature, True, subject_id, names, plot_flag)
+
+    return labels
+
+
+def get_labels_using_gravity_ratio(all_features, hand=''):
+    # Get the result of the gravity phase
+    normlizeFlag = True
+    [groupedFeature, names, subject_id, data] = get_gravity_data(all_features, normlizeFlag, hand)
+
+    # Seperate subjects by their reaction
+    data_mean = data.mean(axis=1, keepdims=True)
+    data_std = data.std(axis=1, keepdims=True)
+    data_mean_std = np.array([data_mean[:, 0] - data_std[:, 0], data_mean[:, 0] + data_std[:, 0]]).T
+
+    positive_reaction_ids = np.array([data_mean_std[:, 0] > 0]).T
+    negative_rection_ids = np.array([data_mean_std[:, 1] < 0]).T
+    balance_reaction_ids = (positive_reaction_ids == False) & (negative_rection_ids == False)
+    reactions_ids = np.array([negative_rection_ids[:, 0], balance_reaction_ids[:, 0], positive_reaction_ids[:, 0]]).T
+    labels = pd.DataFrame(0, index=groupedFeature.index, columns=['label'])
+    for ind, d in enumerate(reactions_ids):
+        labels.iloc[ind, 0] = np.where(d)[0][0]
+
+    return labels
 
 
 def fashion_scatter(x, colors):

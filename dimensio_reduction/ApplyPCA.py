@@ -3,62 +3,10 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, scale  # use to normalize the data
 from sklearn.decomposition import PCA  # Use to perform the PCA transform
 import matplotlib.pyplot as plt
-from utils import GetStudyData, get_hand_fingers_data_relate_to_center, GetGravityData
-import plotPCA
+from common.utils import get_study_data, get_hand_fingers_data_relate_to_center, get_gravity_data
+import dimensio_reduction.plotPCA
 from scipy import stats
 import seaborn as sns
-
-
-def seperate_subjects_by_reaction(data, subject_id, names, plot_flag):
-    rCol = []
-    for ind in range(len(subject_id)):
-        rCol.append('C' + str(ind))
-
-    # Seperate subjects by their reaction
-    data_mean = data.mean(axis=1, keepdims=True)
-    data_std = data.std(axis=1, keepdims=True)
-    data_mean_std = np.array([data_mean[:, 0] - data_std[:, 0], data_mean[:, 0] + data_std[:, 0]]).T
-
-    positive_reaction_ids = np.array([data_mean_std[:, 0] > 0]).T
-    negative_rection_ids = np.array([data_mean_std[:, 1] < 0]).T
-    balance_reaction_ids = (positive_reaction_ids == False) & (negative_rection_ids == False)
-    reactions_ids = np.array([negative_rection_ids[:, 0], balance_reaction_ids[:, 0], positive_reaction_ids[:, 0]]).T
-    if len(data_mean_std) > 30:
-        positive_reaction_ids = positive_reaction_ids[['r' in s for s in names]]
-        negative_rection_ids = negative_rection_ids[['r' in s for s in names]]
-        balance_reaction_ids = balance_reaction_ids[['r' in s for s in names]]
-
-    # Plot the reaction by groups of reactions
-    if plot_flag:
-        fig, ax = plt.subplots()
-        plt.title('Group Comparison', fontsize=20)
-        plt.ylabel('Ratio', fontsize=12)
-        plt.xlabel("Index of time", fontsize=12)
-        grouped_feature_plot = groupedFeature[['r' in s for s in names]]
-
-        groups = [np.where(negative_rection_ids), np.where(balance_reaction_ids), np.where(positive_reaction_ids)]
-        Legend = ['Negative reaction', 'Balance reaction', 'Possitive reaction']
-        for ind, groupInds in enumerate(groups):
-            if groupInds:
-                tempDF = pd.DataFrame()
-                tempDF = grouped_feature_plot.iloc[groupInds[0], :]
-                tempDFVal = tempDF.values
-                dataByTimes = np.resize(tempDFVal, (tempDFVal.shape[0] * 12, np.shape(data)[1]))
-
-                if not (normlizeFlag):
-                    for i in range(dataByTimes.shape[0]):
-                        dataByTimes[i, :] = (dataByTimes[i, :] - dataByTimes[i, 0]) / dataByTimes[i, 0]
-                groupMeans = dataByTimes.mean(axis=0)
-                groupStd = dataByTimes.std(axis=0)
-                ax.plot(groupMeans, color=rCol[ind])
-                x = np.linspace(0, len(groupStd) - 1, len(groupStd))
-                ax.fill_between(x, groupMeans - groupStd, groupMeans + groupStd, color=rCol[ind], alpha=0.3)
-
-        plt.legend(Legend[0:ind + 1], loc='center left', bbox_to_anchor=(0, 0.9))
-        plt.show()
-
-    return reactions_ids
-
 
 def run_pca_on_df(grouped_feature, n_comp=2):
     # Data Visualization
@@ -266,7 +214,8 @@ if __name__ == "__main__":
 
     hand_to_extract = 'right' # either 'right', 'left' or 'both'
     # [groupedFeature, names, subject_id] = GetStudyData(allFeatures, normlizeFlag)
-    [groupedFeature, names, subject_id, data] = GetGravityData(allFeatures, normlizeFlag, 'right')
+    hand = 'right'
+    [groupedFeature, names, subject_id, data] = get_gravity_data(allFeatures, normlizeFlag, hand)
 
     # Get data seperated by the reaction
     plot_flag = False

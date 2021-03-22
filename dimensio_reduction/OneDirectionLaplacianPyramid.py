@@ -7,7 +7,7 @@ import seaborn as sns
 from scipy import stats
 
 def GetGravityData(all_features, normlize_flag=True, hand = ''):
-    folder = r'C:\Projects\Thesis\Feature-Analysis- matlab\Resize Feature\\'
+    folder = r'C:\Projects\Hand_IRT_Auto_Ecxtraction\Feature-Analysis- matlab\Resize Feature\\'
 
     files = os.listdir(folder)
     if not hand or hand == 'both':

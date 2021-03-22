@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 import os
-from utils import GetStudyData, GetHandFingersDataRelateToCenter, GetGravityData
+from common.utils import get_study_data, get_hand_fingers_data_relate_to_center, get_gravity_data, get_labels_by_hands_similarity
 from sklearn.tree import DecisionTreeClassifier # Import Decision Tree Classifier
 from sklearn.model_selection import train_test_split # Import train_test_split function
 from sklearn import metrics #Import scikit-learn metrics module for accuracy calculation
@@ -12,11 +12,11 @@ from six import StringIO
 from IPython.display import Image
 import pydotplus
 import graphviz
-import ApplyPCA
+import dimensio_reduction.ApplyPCA
 
 def get_all_features_from_xls (all_features = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
                    'Middle_dist_Intence', 'Middle_proxy_Intence', 'Ring_dist_Intence', 'Ring_proxy_Intence',
-                   'Pinky_dist_Intence', 'Pinky_proxy_Intence', 'Palm_arch_Intence', 'Palm_Center_Intence']):
+                   'Pinky_dist_Intence', 'Pinky_proxy_Intence', 'Palm_arch_Intence', 'Palm_Center_Intence'], hand=''):
     """
     Get features from xls files as is and parse it to be use with decision tree
     """
@@ -24,12 +24,16 @@ def get_all_features_from_xls (all_features = ['Thumbs_dist_Intence', 'Thumbs_pr
 #                   'Middle_dist_Intence', 'Middle_proxy_Intence', 'Ring_dist_Intence', 'Ring_proxy_Intence',
 #                   'Pinky_dist_Intence', 'Pinky_proxy_Intence', 'Palm_arch_Intence', 'Palm_Center_Intence']
 
-    folder = r'C:\Projects\Thesis\Feature-Analysis- matlab\Resize Feature\\'
+    folder = r'C:\Projects\Hand_IRT_Auto_Ecxtraction\Feature-Analysis- matlab\Resize Feature\\'
 
     files = os.listdir(folder)
-    file_name_inc = 'right.xlsx'
-    files_xls = [f for f in files if f[-len(file_name_inc):] == file_name_inc]
-    #files_xls = [f for f in files if f[-10:] == 'right.xlsx']
+    if not hand or hand == 'both':
+        files_xls = [f for f in files if f[-5:] == '.xlsx']
+    elif hand == 'right':
+        files_xls = [f for f in files if f[-10:] == 'right.xlsx']
+    elif hand == 'left':
+        files_xls = [f for f in files if f[-9:] == 'left.xlsx']
+
     grouped_feature = pd.DataFrame(columns=['Palm_Center_Intence', 'Proxy_dist', 'Dist_dist'])
     names = []
     subject_id=[]
@@ -98,15 +102,6 @@ def get_labels_using_gravity_ratio(all_features):
 
     return labels
 
-def get_labels_by_hands_similiraty(all_features):
-
-    [groupedFeature, names, subject_id, data] = ApplyPCA.GetGravityData(all_features, True)
-
-    plot_flag = False
-    reactions_ids = ApplyPCA.seperate_subjects_by_reaction(groupedFeature, subject_id, names, plot_flag)
-
-    return labels
-
 def run_decision_tree (grouped_feature, criterion="gini", max_depth=3 ):
     # Run over the data iteritevly
     num_itter = range(30)
@@ -155,9 +150,10 @@ if __name__ == "__main__":
     all_features = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
                     'Middle_dist_Intence', 'Middle_proxy_Intence', 'Ring_dist_Intence', 'Ring_proxy_Intence',
                     'Pinky_dist_Intence', 'Pinky_proxy_Intence', 'Palm_arch_Intence', 'Palm_Center_Intence']
-    [grouped_feature, subject_id, names] = get_all_features_from_xls(all_features)
+    hand = 'right'
+    [grouped_feature, subject_id, names] = get_all_features_from_xls(all_features, hand)
 
-    labels = get_labels_by_hands_similiraty(all_features, grouped_feature, subject_id, names)
+    labels = get_labels_by_hands_similarity(all_features)
 
     char_cols_names = ['SBP', 'DBP', 'PP', 'Age']
     grouped_feature = add_charectaristics_to_features(grouped_feature, char_cols_names)
