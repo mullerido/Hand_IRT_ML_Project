@@ -3,7 +3,7 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, scale  # use to normalize the data
 from sklearn.decomposition import PCA  # Use to perform the PCA transform
 import matplotlib.pyplot as plt
-from common.utils import get_study_data, get_hand_fingers_data_relate_to_center, get_gravity_data
+from common.utils import get_study_data, get_hand_fingers_data_relate_to_center, get_gravity_data, seperate_subjects_by_reaction
 import dimensio_reduction.plotPCA
 from scipy import stats
 import seaborn as sns

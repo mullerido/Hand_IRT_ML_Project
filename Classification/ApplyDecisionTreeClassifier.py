@@ -85,7 +85,7 @@ def add_charectaristics_to_features(grouped_feature, char_cols_names):
 def get_labels_using_gravity_ratio(all_features):
     # Get the result of the gravity phase
     normlizeFlag = True
-    [groupedFeature, names, subject_id, data] = GetGravityData(all_features, normlizeFlag)
+    [groupedFeature, names, subject_id, data] = get_gravity_data(all_features, normlizeFlag)
 
     # Seperate subjects by their reaction
     data_mean = data.mean(axis=1, keepdims=True)
