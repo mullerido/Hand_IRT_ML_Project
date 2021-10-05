@@ -1,20 +1,21 @@
 import numpy as np
 import pandas as pd
-from utils import fashion_scatter, get_hand_fingers_data_relate_to_center
+from common.utils import fashion_scatter, get_hand_fingers_data_relate_to_center
 from sklearn.manifold import TSNE
-from utils import GetStudyData, GetGravityData
+#from common.utils import GetStudyData, GetGravityData
 import matplotlib.pyplot as plt
 from scipy import stats
 import seaborn as sns
-from ApplyPCA import run_pca_on_df
+#from ApplyPCA import run_pca_on_df
+
 '''
     Load training data:
     Rows = N samples
     Columns = features
 '''
 
-def run_tSNE_per_input(data, radius):
 
+def run_tSNE_per_input(data, radius):
     # testVals = np.linspace(5, 30, 30/5)#perplexity
     testVals = np.linspace(50, 1000, 20)
     fig, axs = plt.subplots(5, 4, figsize=(15, 6), facecolor='w', edgecolor='k')
@@ -39,8 +40,8 @@ def run_tSNE_per_input(data, radius):
 
     fashion_scatter(fashion_tsne, np.array([0] * fashion_tsne.shape[0]))
 
-def vizualise_tsne_and_get_distance(grouped_feature, exData, subject_id, perplexity_v=5, learning_rate_v=150):
 
+def vizualise_tsne_and_get_distance(grouped_feature, exData, subject_id, perplexity_v=5, learning_rate_v=150):
     fashion_tsne = TSNE(n_components=2, perplexity=perplexity_v, early_exaggeration=12.0,
                         learning_rate=learning_rate_v, n_iter=1000, n_iter_without_progress=300,
                         min_grad_norm=1e-07, metric='euclidean', init='random', verbose=0,
@@ -106,19 +107,19 @@ if __name__ == "__main__":
 
     RS = 150
     normalize_flag = True
-    #allFeatures = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
+    # allFeatures = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
     #               'Middle_dist_Intence', 'Middle_proxy_Intence', 'Ring_dist_Intence', 'Ring_proxy_Intence',
     #               'Pinky_dist_Intence', 'Pinky_proxy_Intence', 'Palm_arch_Intence', 'Palm_Center_Intence']
     allFeatures = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
                    'Middle_dist_Intence', 'Middle_proxy_Intence', 'Ring_dist_Intence', 'Ring_proxy_Intence',
                    'Pinky_dist_Intence', 'Pinky_proxy_Intence', 'Palm_arch_Intence', 'Palm_Center_Intence']
     hand_to_extract = 'both'
-    #[groupedFeature, names] = GetStudyData(normlizeFlag)
-    #[grouped_feature, names, subject_id, data] = GetGravityData(allFeatures, normalize_flag, hand_to_extract)
+    # [groupedFeature, names] = GetStudyData(normlizeFlag)
+    # [grouped_feature, names, subject_id, data] = GetGravityData(allFeatures, normalize_flag, hand_to_extract)
     [grouped_feature, names, subject_id] = get_hand_fingers_data_relate_to_center(normalize_flag, hand_to_extract)
-    #[principal_breast_Df, principalComponents] = run_pca_on_df(grouped_feature, 20)
+    # [principal_breast_Df, principalComponents] = run_pca_on_df(grouped_feature, 20)
 
-    charectaristcs_PD = pd.read_excel(r"C:\Users\ido.DM\Google Drive\Thesis\Data\Characteristics.xlsx")
+    charectaristcs_PD = pd.read_excel(r"G:\My Drive\Thesis\Data\Characteristics.xlsx")
     charectaristcs_PD = charectaristcs_PD.set_index('Ext_name')
     exData = charectaristcs_PD.loc[:, [col for col in charectaristcs_PD.columns if 'PP' in col]]
     minVal = min(exData.values) * 0.8
@@ -126,10 +127,8 @@ if __name__ == "__main__":
     r = 100 * (exData.values - minVal) / (maxVal - minVal)
     rDF = pd.DataFrame(data=r, index=exData.index)
 
-    #run_tSNE_per_input(grouped_feature, rDF)
+    # run_tSNE_per_input(grouped_feature, rDF)
 
     if hand_to_extract == 'both':
         in_subject_hand_dist = vizualise_tsne_and_get_distance(grouped_feature, exData, subject_id)
         prc_75 = np.percentile(in_subject_hand_dist, 75)
-
-

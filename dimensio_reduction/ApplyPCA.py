@@ -4,9 +4,9 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler, scale  # use to 
 from sklearn.decomposition import PCA  # Use to perform the PCA transform
 import matplotlib.pyplot as plt
 from common.utils import get_study_data, get_hand_fingers_data_relate_to_center, get_gravity_data, seperate_subjects_by_reaction
-import dimensio_reduction.plotPCA
 from scipy import stats
 import seaborn as sns
+from dimensio_reduction import plotPCA
 
 def run_pca_on_df(grouped_feature, n_comp=2):
     # Data Visualization
@@ -163,7 +163,7 @@ def plot_areas_by_groups_pca_dim_single_fid(groupedFeature, subject_id, groups, 
             tempDFVal = tempDF.values
             dataByTimes = np.resize(tempDFVal, (tempDFVal.shape[0] * 12, cols_with_zero[0][1]))
 
-            if not (normlizeFlag):
+            if not (normalize_flag):
                 for i in range(dataByTimes.shape[0]):
                     dataByTimes[i, :] = (dataByTimes[i, :] - dataByTimes[i, 0]) / dataByTimes[i, 0]
             groupMeans = dataByTimes.mean(axis=0)
@@ -192,7 +192,7 @@ def plot_areas_by_groups_pca_dim_multiple_fid(groupedFeature, subject_id, groups
             tempDFVal = tempDF.values
             dataByTimes = np.resize(tempDFVal, (tempDFVal.shape[0] * 12, 39))
 
-            if not (normlizeFlag):
+            if not (normalize_flag):
                 for i in range(dataByTimes.shape[0]):
                     dataByTimes[i, :] = (dataByTimes[i, :] - dataByTimes[i, 0]) / dataByTimes[i, 0]
             groupMeans = dataByTimes.mean(axis=0)
@@ -205,7 +205,7 @@ def plot_areas_by_groups_pca_dim_multiple_fid(groupedFeature, subject_id, groups
     plt.show()
 
 if __name__ == "__main__":
-    normlizeFlag = True
+    normalize_flag = True
     # allFeatures = GetHandFingersDataRelateToCenter()
 
     allFeatures = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
@@ -215,14 +215,16 @@ if __name__ == "__main__":
     hand_to_extract = 'right' # either 'right', 'left' or 'both'
     # [groupedFeature, names, subject_id] = GetStudyData(allFeatures, normlizeFlag)
     hand = 'right'
-    [groupedFeature, names, subject_id, data] = get_gravity_data(allFeatures, normlizeFlag, hand)
+    [grouped_feature, names, subject_id, data] = get_gravity_data(allFeatures, normalize_flag, hand)
 
     # Get data seperated by the reaction
     plot_flag = False
-    reactions_ids = seperate_subjects_by_reaction(data, subject_id, names, plot_flag)
+    #reactions_ids = seperate_subjects_by_reaction(data, subject_id, names, plot_flag)
+
+    reactions_ids = seperate_subjects_by_reaction(data, grouped_feature, normalize_flag, subject_id, names, plot_flag=False)
 
     # Run PCA
-    [principal_components_Df, principal_components] = run_pca_on_df(groupedFeature)
+    [principal_components_Df, principal_components] = run_pca_on_df(grouped_feature)
 
     # Plot the visualization of the two PCs
     charectaristcs_PD = pd.read_excel(r"C:\Users\ido.DM\Google Drive\Thesis\Data\Characteristics.xlsx")
@@ -236,9 +238,9 @@ if __name__ == "__main__":
         prc_75 = np.percentile(in_subject_hand_dist, 75)
 
     # Plot areas by grops in PCA dimension
-    [groups, Legend] = split_data_in_pca_dim(principal_components, groupedFeature, names,
+    [groups, Legend] = split_data_in_pca_dim(principal_components, grouped_feature, names,
                                              type='rectangle', x1_thresh=-1.5, y1_thresh=-1, x2_thresh=0.9, y2_thresh=0.5)
 
-    plot_areas_by_groups_pca_dim_single_fid(groupedFeature, subject_id, groups, Legend)
+    plot_areas_by_groups_pca_dim_single_fid(grouped_feature, subject_id, groups, Legend)
 
-    plot_areas_by_groups_pca_dim_multiple_fid(groupedFeature, subject_id, groups, Legend)
+    plot_areas_by_groups_pca_dim_multiple_fid(grouped_feature, subject_id, groups, Legend)

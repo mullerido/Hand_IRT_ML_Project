@@ -6,7 +6,7 @@ import seaborn as sns
 import matplotlib.patheffects as PathEffects
 
 
-def get_gravity_data(all_features, normlize_flag=False, hand=''):
+def get_gravity_data(all_features, normlize_flag=False, hand='', t_samples=19):
     folder = r'C:\Projects\Hand_IRT_Auto_Ecxtraction\Feature-Analysis- matlab\Resize Feature\\'
 
     files = os.listdir(folder)
@@ -20,20 +20,21 @@ def get_gravity_data(all_features, normlize_flag=False, hand=''):
     grouped_feature = pd.DataFrame()
     names = []
     subject_id = []
-    data = np.empty((np.shape(files_xls)[0], 19))
+    data = np.empty((np.shape(files_xls)[0], t_samples))
     for ind, file in enumerate(files_xls):
         print(file)
         currentFile = folder + file
         currentFeatures = pd.read_excel(currentFile)
         if normlize_flag:  # Use the ratio
-            relevant_cols = (currentFeatures.loc[0:18, all_features] - currentFeatures.loc[0, all_features]) / \
+            relevant_cols = (currentFeatures.loc[0:t_samples - 1, all_features] - currentFeatures.loc[
+                0, all_features]) / \
                             currentFeatures.loc[0, all_features]
             data[ind, :] = relevant_cols.mean(axis=1)
         else:  # Use the actual values
             # relevantCols = currentFeatures.filter(regex='Intence')
-            relevant_cols = currentFeatures.loc[0:18, all_features]
+            relevant_cols = currentFeatures.loc[0:t_samples - 1, all_features]
             data[ind, :] = relevant_cols.mean(
-                (currentFeatures.loc[0:18, all_features] - currentFeatures.loc[0, all_features]) /
+                (currentFeatures.loc[0:t_samples - 1, all_features] - currentFeatures.loc[0, all_features]) /
                 currentFeatures.loc[0, all_features], axis=1)
 
         transformData = relevant_cols.values.ravel('F')
@@ -84,8 +85,6 @@ def get_study_data(all_features, normalize_flag=False):
 
     return groupedFeature, names, subject_id
 
-
-# Utility function to visualize the outputs of PCA and t-SNE
 
 def get_hand_fingers_data_relate_to_center(normalize_flag=False, hand=''):
     grouped_feature = pd.DataFrame()
@@ -196,21 +195,21 @@ def get_labels_by_hands_similarity(all_features, grouped_feature=[], subject_id=
     return labels
 
 
-def get_labels_using_gravity_ratio(all_features, hand=''):
+def get_labels_using_gravity_ratio(data, names):  # , all_features, hand='', t_samples=19):
     # Get the result of the gravity phase
-    normlizeFlag = True
-    [groupedFeature, names, subject_id, data] = get_gravity_data(all_features, normlizeFlag, hand)
+    # normalizeFlag = True
+    # [groupedFeature, a, b, data] = get_gravity_data(all_features, normlizeFlag, hand, t_samples)
 
-    # Seperate subjects by their reaction
+    # Separate subjects by their reaction
     data_mean = data.mean(axis=1, keepdims=True)
     data_std = data.std(axis=1, keepdims=True)
     data_mean_std = np.array([data_mean[:, 0] - data_std[:, 0], data_mean[:, 0] + data_std[:, 0]]).T
 
     positive_reaction_ids = np.array([data_mean_std[:, 0] > 0]).T
-    negative_rection_ids = np.array([data_mean_std[:, 1] < 0]).T
-    balance_reaction_ids = (positive_reaction_ids == False) & (negative_rection_ids == False)
-    reactions_ids = np.array([negative_rection_ids[:, 0], balance_reaction_ids[:, 0], positive_reaction_ids[:, 0]]).T
-    labels = pd.DataFrame(0, index=groupedFeature.index, columns=['label'])
+    negative_reaction_ids = np.array([data_mean_std[:, 1] < 0]).T
+    balance_reaction_ids = (positive_reaction_ids == False) & (negative_reaction_ids == False)
+    reactions_ids = np.array([negative_reaction_ids[:, 0], balance_reaction_ids[:, 0], positive_reaction_ids[:, 0]]).T
+    labels = pd.DataFrame(0, index=names, columns=['label'])
     for ind, d in enumerate(reactions_ids):
         labels.iloc[ind, 0] = np.where(d)[0][0]
 
