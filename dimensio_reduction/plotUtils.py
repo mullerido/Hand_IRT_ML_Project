@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 def plotimage(image, cmp=None, savePath=""):
     plt.figure()
@@ -54,3 +55,65 @@ def plotOpeningOverTime(foreGroundPixels, rad, savePath=""):
     if savePath:
         plt.savefig(savePath)
         plt.close("all")
+
+def plot_areas_by_groups_pca_dim_single_fid(groupedFeature, subject_id, groups, Legend, normalize_flag):
+    rCol = []
+    for ind in range(len(subject_id)):
+        rCol.append('C' + str(ind))
+
+    colors = ['C0', 'C1', 'C2', 'C3', 'C4']
+
+    # plot all on the same figure
+    fig, ax = plt.subplots()
+    plt.title('Group Comparison', fontsize=20)
+    plt.ylabel('Ratio', fontsize=12)
+    plt.xlabel("Index of time", fontsize=12)
+    for ind, groupInds in enumerate(groups):
+        if groupInds:
+            tempDF = pd.DataFrame()
+            tempDF = groupedFeature.iloc[groupInds[0], :-1]
+            tempDFVal = tempDF.values
+
+            if not normalize_flag:
+                for i in range(tempDFVal.shape[0]):
+                    tempDFVal[i, :] = (tempDFVal[i, :] - tempDFVal[i, 0]) / tempDFVal[i, 0]
+            groupMeans = tempDFVal.mean(axis=0)
+            groupStd = tempDFVal.std(axis=0)
+            ax.plot(groupMeans, color=colors[ind])
+            x = np.linspace(0, len(groupStd) - 1, len(groupStd))
+            ax.fill_between(x, groupMeans - groupStd, groupMeans + groupStd, color=rCol[ind], alpha=0.3)
+    plt.legend(Legend[0:ind + 1])
+    plt.show()
+
+def plot_areas_by_groups_pca_dim_multiple_fid(groupedFeature, subject_id, groups, Legend, normalize_flag):
+    rCol = []
+    for ind in range(len(subject_id)):
+        rCol.append('C' + str(ind))
+
+    colors = ['C0', 'C1', 'C2', 'C3', 'C4']
+    # plot all on different figures
+    fig, ax = plt.subplots(np.shape(groups)[0], 1)
+    fig.suptitle('Group Comparison', fontsize=20)
+
+    plt.xlabel("Index of time", fontsize=12)
+    for ind, groupInds in enumerate(groups):
+        if groupInds:
+            tempDF = pd.DataFrame()
+            tempDF = groupedFeature.iloc[groupInds[0], :-1]
+            tempDFVal = tempDF.values
+            dataByTimes = np.resize(tempDFVal, (tempDFVal.shape[0] * 12, 39))
+
+            if not normalize_flag:
+                for i in range(dataByTimes.shape[0]):
+                    dataByTimes[i, :] = (dataByTimes[i, :] - dataByTimes[i, 0]) / dataByTimes[i, 0]
+            groupMeans = dataByTimes.mean(axis=0)
+            groupStd = dataByTimes.std(axis=0)
+            ax[ind].plot(groupMeans, color=colors[ind])
+            x = np.linspace(0, len(groupStd) - 1, len(groupStd))
+            ax[ind].fill_between(x, groupMeans - groupStd, groupMeans + groupStd, color=rCol[ind], alpha=0.3)
+            ax[ind].set(xlabel="Index of time", ylabel="Ratio", title=Legend[ind])
+            ax[ind].set_ylim([-0.4, 0.8])
+    plt.show()
+
+def plot_subplots_bars(data, title, x_label, y_label):
+    x=1

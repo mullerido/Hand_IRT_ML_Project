@@ -11,7 +11,7 @@ import statsmodels.api as sm
 
 if __name__ == "__main__":
 
-    result_df = pd.read_excel(r'C:\Users\ido.DM\Google Drive\Thesis\Project\Results\Two-D Laplacian\Dist Method Comparison.xlsx', header=0)
+    result_df = pd.read_excel(r'G:\My Drive\Thesis\Project\Results\Two-D Laplacian\Dist Method Comparison.xlsx', header=0)
 
     dist_type = 'ave_dist_model'
     # Normality Assumption Check: Q-Q plot

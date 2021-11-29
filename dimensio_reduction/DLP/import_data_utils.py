@@ -2,6 +2,19 @@ import numpy as np
 import os
 import pandas as pd
 from DLP_Utils import running_mean
+import json
+
+
+class NumpyArrayEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(NumpyArrayEncoder, self).default(obj)
 
 
 def get_gravity_data(all_features, normlize_flag=True, smooth_flag=True, hand='', t_samples=19):
@@ -60,7 +73,7 @@ def get_gravity_data(all_features, normlize_flag=True, smooth_flag=True, hand=''
 
         ind_name = file[:-5]
         names.append(ind_name[:])
-        subject_ids.append(ind_name.split('_')[0] + '_' + ind_name.split('_')[1] + '_')
+        subject_ids.append(ind_name.split('_')[0] + '_' + ind_name.split('_')[1])  # + '_')
 
     unique_subject_ids = np.unique(subject_ids)
     # data_cube = data_cube_s.copy()
@@ -113,7 +126,9 @@ def get_patient_data(current_file, all_features, normalize_flag, smooth_flag, t_
             # data_cube[ind, roi_i, 1:] = np.convolve(data_cube[ind, roi_i, 1:], box,
             #                                        mode='same') / 5  # mode='same') / 5
     if not normalize_flag:
-        return data_cube_smooth, mean_data
+        normalized_data = np.copy(data_cube_smooth[0, :, :])
+        mean_data[0, :] = normalized_data.mean(axis=0)
+        return normalized_data, mean_data
     else:
         normalized_data = np.copy(data_cube_smooth[0, :, :])
         for roi_i in range(np.shape(all_features)[0]):  # Use the ratio
@@ -122,3 +137,54 @@ def get_patient_data(current_file, all_features, normalize_flag, smooth_flag, t_
         mean_data[0, :] = normalized_data.mean(axis=0)
 
         return normalized_data, mean_data
+
+
+def save_all_gravity_data(save_path, normalize_flag=True, smooth_flag=True, t_samples=39):
+    all_features = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Ring_dist_Intence', 'Ring_proxy_Intence',
+                    'Middle_dist_Intence', 'Middle_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
+                    'Pinky_dist_Intence', 'Pinky_proxy_Intence', 'Palm_Center_Intence', 'Palm_arch_Intence']
+
+    [data_cube_r, mean_data_r, data_cube_l, mean_data_l, all_subject_ids] = get_gravity_data_paired(all_features,
+                                                                                                    normalize_flag,
+                                                                                                    smooth_flag,
+                                                                                                    t_samples)
+
+    data_dict = {'data_cube_r': np.reshape(data_cube_r, (29 * 12 * 39, 1)),
+                 'mean_data_r': np.reshape(mean_data_r, (29 * 39, 1)),
+                 'data_cube_l': np.reshape(data_cube_l, (29 * 12 * 39, 1)),
+                 'mean_data_l': np.reshape(mean_data_l, (29 * 39, 1)),
+                 'all_subject_ids': all_subject_ids,
+                 'all_features': all_features,
+                 'normalize_flag': normalize_flag,
+                 'smooth_flag': smooth_flag,
+                 }
+
+    with open(save_path, "w") as write_file:
+        json.dump(data_dict, write_file, cls=NumpyArrayEncoder)
+
+def get_relevant_data_from_file(file, t_samples, relevant_features):
+    # Parse the data
+    with open(file, 'r', encoding="utf-8") as f:
+        data_json = json.load(f)
+
+    all_features = data_json['all_features']
+    relevant_features_ids = indices = np.where(np.in1d(all_features, relevant_features))[0]
+
+    data_cube_r_all = np.reshape(data_json['data_cube_r'], (29, 12, 39))
+    data_cube_r = data_cube_r_all[:, relevant_features_ids, 0:t_samples]
+    mean_data_r = np.empty((np.shape(data_cube_r)[0], t_samples))
+    for s_id in range(np.shape(data_cube_r)[0]):
+        mean_data_r[s_id, :] = np.mean(data_cube_r[s_id, :, :], axis=0)
+
+    data_cube_l_all = np.reshape(data_json['data_cube_l'], (29, 12, 39))
+    data_cube_l = data_cube_l_all[:, relevant_features_ids, 0:t_samples]
+    mean_data_l = np.empty((np.shape(data_cube_r)[0], t_samples))
+    for s_id in range(np.shape(data_cube_r)[0]):
+        mean_data_l[s_id, :] = np.mean(data_cube_l[s_id, :, :], axis=0)
+
+    all_subject_ids = data_json['all_subject_ids']
+
+    normalize_flag = data_json['normalize_flag']
+    smooth_flag = data_json['smooth_flag']
+
+    return data_cube_r, mean_data_r, data_cube_l, mean_data_l, all_subject_ids

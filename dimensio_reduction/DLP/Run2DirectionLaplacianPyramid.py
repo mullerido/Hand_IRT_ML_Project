@@ -12,7 +12,7 @@ from dimensio_reduction.DLP.import_data_utils import get_gravity_data
 from dimensio_reduction.DLP.run_DLP_model import run_ALP_model_train, run_ALP_model_test_iterations
 
 if __name__ == "__main__":
-    normalize_flag = False
+    normalize_flag = True
     # allFeatures = GetHandFingersDataRelateToCenter()
     per_patient_result = []
     all_features = ['Thumbs_proxy_Intence', 'Index_proxy_Intence', 'Middle_proxy_Intence', 'Ring_proxy_Intence',
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     alpha = 0.5
     # Split the data automatically
     # Find label
-    labels = get_labels_using_gravity_ratio(mean_data, names, all_features, hand, t_samples)
+    labels = get_labels_using_gravity_ratio(mean_data, names)#, all_features, hand, t_samples)
     s_range = np.arange(np.shape(date_cube)[0])
     # rng = np.random.RandomState(2000)
 

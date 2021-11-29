@@ -3,10 +3,14 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, scale  # use to normalize the data
 from sklearn.decomposition import PCA  # Use to perform the PCA transform
 import matplotlib.pyplot as plt
-from common.utils import get_study_data, get_hand_fingers_data_relate_to_center, get_gravity_data, seperate_subjects_by_reaction
+from common.utils import get_study_data, get_hand_fingers_data_relate_to_center, get_gravity_data, \
+    seperate_subjects_by_reaction, compare_hand_distances
 from scipy import stats
 import seaborn as sns
 from dimensio_reduction import plotPCA
+from dimensio_reduction.plotUtils import plot_areas_by_groups_pca_dim_single_fid, \
+    plot_areas_by_groups_pca_dim_multiple_fid
+
 
 def run_pca_on_df(grouped_feature, n_comp=2):
     # Data Visualization
@@ -16,7 +20,7 @@ def run_pca_on_df(grouped_feature, n_comp=2):
     x_norm = min_max_scaler.fit_transform(x)
     y = scale(grouped_feature.values)
 
-    #groupedFeature['label'] = 'n'
+    # groupedFeature['label'] = 'n'
 
     # convert the normalized features into a tabular format with the help of DataFrame.
     feat_cols = ['feature' + str(i) for i in range(x.shape[1])]
@@ -25,19 +29,23 @@ def run_pca_on_df(grouped_feature, n_comp=2):
 
     pca_Data = PCA(n_components=n_comp)
     principal_components = pca_Data.fit_transform(x)
+    eigen_vectors = pca_Data.components_
+    eigen_values = pca_Data.explained_variance_
+
 
     # create a DataFrame that will have the principal component values for all samples
     rCol = []
     for ind in range(n_comp):
-        rCol.append('principal component ' + str(ind+1))
+        rCol.append('principal component ' + str(ind + 1))
     principal_components_Df = pd.DataFrame(data=principal_components,
-                                       columns=rCol)#['principal component 1', 'principal component 2'])
-    #principal_components_Df.tail()  # Return the last n rows.
+                                           columns=rCol)  # ['principal component 1', 'principal component 2'])
+
+    # principal_components_Df.tail()  # Return the last n rows.
 
     # Show for each principle component how much of the informaion it holds
     print('Explained variation per principal component: {}'.format(pca_Data.explained_variance_ratio_))
 
-    return principal_components_Df, principal_components
+    return principal_components_Df, principal_components, eigen_vectors, eigen_values
 
 
 def vizualise_pca_and_get_distance(exData, principal_breast_Df, subject_id):
@@ -96,12 +104,11 @@ def vizualise_pca_and_get_distance(exData, principal_breast_Df, subject_id):
 
     return in_subject_hand_dist
 
-def split_data_in_pca_dim(principal_cmponents, grouped_feature, names, type='axis', x1_thresh = 0, y1_thresh = 0, x2_thresh=None, y2_thresh=None):
 
+def split_data_in_pca_dim(principal_cmponents, names, type='axis', x1_thresh=0, y1_thresh=0, x2_thresh=None,
+                          y2_thresh=None):
     # Start plot lines by groups on same fig
-    relevant_data = principal_cmponents[['r' in s for s in names]]
-    # relevant_data = relevant_data.values#reset_index(drop=True).
-    groupedFeature = grouped_feature[['r' in s for s in names]]
+    relevant_data = principal_cmponents#[['r' in s for s in names]]
     groups = [[], [], [], []]
 
     if type == 'axis':
@@ -109,11 +116,13 @@ def split_data_in_pca_dim(principal_cmponents, grouped_feature, names, type='axi
             choice = np.logical_and(np.greater_equal(relevant_data[:, 0], x1_thresh),
                                     np.greater_equal(relevant_data[:, 1], y1_thresh))
             groups[0] = np.where(choice)
-            choice = np.logical_and(np.greater_equal(relevant_data[:, 0], x1_thresh), np.less(relevant_data[:, 1], y1_thresh))
+            choice = np.logical_and(np.greater_equal(relevant_data[:, 0], x1_thresh),
+                                    np.less(relevant_data[:, 1], y1_thresh))
             groups[1] = np.where(choice)
             choice = np.logical_and(np.less(relevant_data[:, 0], x1_thresh), np.less(relevant_data[:, 1], y1_thresh))
             groups[2] = np.where(choice)
-            choice = np.logical_and(np.less(relevant_data[:, 0], x1_thresh), np.greater_equal(relevant_data[:, 1], y1_thresh))
+            choice = np.logical_and(np.less(relevant_data[:, 0], x1_thresh),
+                                    np.greater_equal(relevant_data[:, 1], y1_thresh))
             groups[3] = np.where(choice)
             Legend = ['1Qtr', '2Qtr', '3Qtr', '4Qtr']
 
@@ -133,7 +142,10 @@ def split_data_in_pca_dim(principal_cmponents, grouped_feature, names, type='axi
 
     elif type == 'rectangle':
         # zone 1- inside rectangle and zone 2 outside the rectangle
-        choice_in = np.array([relevant_data[:, 0]>= x1_thresh]).T & np.array([relevant_data[:, 1]>= y1_thresh]).T & np.array([relevant_data[:, 0]<= x2_thresh]).T & np.array([relevant_data[:, 1]<= y2_thresh]).T
+        choice_in = np.array([relevant_data[:, 0] >= x1_thresh]).T & \
+                    np.array([relevant_data[:, 1] >= y1_thresh]).T & \
+                    np.array([relevant_data[:, 0] <= x2_thresh]).T & \
+                    np.array([relevant_data[:, 1] <= y2_thresh]).T
         groups[0] = np.where(choice_in)
 
         choice_out = np.array([not elem for elem in choice_in])
@@ -143,66 +155,6 @@ def split_data_in_pca_dim(principal_cmponents, grouped_feature, names, type='axi
 
     return groups, Legend
 
-def plot_areas_by_groups_pca_dim_single_fid(groupedFeature, subject_id, groups, Legend):
-    rCol = []
-    for ind in range(len(subject_id)):
-        rCol.append('C' + str(ind))
-
-    cols_with_zero = np.where(groupedFeature.iloc[1, :] == 0)
-    colors = ['C0', 'C1', 'C2', 'C3', 'C4']
-
-    # plot all on the same figure
-    fig, ax = plt.subplots()
-    plt.title('Group Comparison', fontsize=20)
-    plt.ylabel('Ratio', fontsize=12)
-    plt.xlabel("Index of time", fontsize=12)
-    for ind, groupInds in enumerate(groups):
-        if groupInds:
-            tempDF = pd.DataFrame()
-            tempDF = groupedFeature.iloc[groupInds[0], :-1]
-            tempDFVal = tempDF.values
-            dataByTimes = np.resize(tempDFVal, (tempDFVal.shape[0] * 12, cols_with_zero[0][1]))
-
-            if not (normalize_flag):
-                for i in range(dataByTimes.shape[0]):
-                    dataByTimes[i, :] = (dataByTimes[i, :] - dataByTimes[i, 0]) / dataByTimes[i, 0]
-            groupMeans = dataByTimes.mean(axis=0)
-            groupStd = dataByTimes.std(axis=0)
-            ax.plot(groupMeans, color=colors[ind])
-            x = np.linspace(0, len(groupStd) - 1, len(groupStd))
-            ax.fill_between(x, groupMeans - groupStd, groupMeans + groupStd, color=rCol[ind], alpha=0.3)
-    plt.legend(Legend[0:ind + 1])
-    plt.show()
-
-def plot_areas_by_groups_pca_dim_multiple_fid(groupedFeature, subject_id, groups, Legend):
-    rCol = []
-    for ind in range(len(subject_id)):
-        rCol.append('C' + str(ind))
-
-    colors = ['C0', 'C1', 'C2', 'C3', 'C4']
-    # plot all on different figures
-    fig, ax = plt.subplots(np.shape(groups)[0], 1)
-    fig.suptitle('Group Comparison', fontsize=20)
-
-    plt.xlabel("Index of time", fontsize=12)
-    for ind, groupInds in enumerate(groups):
-        if groupInds:
-            tempDF = pd.DataFrame()
-            tempDF = groupedFeature.iloc[groupInds[0], :-1]
-            tempDFVal = tempDF.values
-            dataByTimes = np.resize(tempDFVal, (tempDFVal.shape[0] * 12, 39))
-
-            if not (normalize_flag):
-                for i in range(dataByTimes.shape[0]):
-                    dataByTimes[i, :] = (dataByTimes[i, :] - dataByTimes[i, 0]) / dataByTimes[i, 0]
-            groupMeans = dataByTimes.mean(axis=0)
-            groupStd = dataByTimes.std(axis=0)
-            ax[ind].plot(groupMeans, color=colors[ind])
-            x = np.linspace(0, len(groupStd) - 1, len(groupStd))
-            ax[ind].fill_between(x, groupMeans - groupStd, groupMeans + groupStd, color=rCol[ind], alpha=0.3)
-            ax[ind].set(xlabel="Index of time", ylabel="Ratio", title=Legend[ind])
-            ax[ind].set_ylim([-0.4, 0.8])
-    plt.show()
 
 if __name__ == "__main__":
     normalize_flag = True
@@ -211,36 +163,52 @@ if __name__ == "__main__":
     allFeatures = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
                    'Middle_dist_Intence', 'Middle_proxy_Intence', 'Ring_dist_Intence', 'Ring_proxy_Intence',
                    'Pinky_dist_Intence', 'Pinky_proxy_Intence', 'Palm_arch_Intence', 'Palm_Center_Intence']
+    allFeatures = ['Thumbs_dist_Intence', 'Index_dist_Intence',
+                   'Middle_dist_Intence', 'Ring_dist_Intence',
+                   'Pinky_dist_Intence', 'Palm_Center_Intence']
 
-    hand_to_extract = 'right' # either 'right', 'left' or 'both'
+    hand_to_extract = 'both'  # either 'right', 'left' or 'both'
     # [groupedFeature, names, subject_id] = GetStudyData(allFeatures, normlizeFlag)
-    hand = 'right'
-    [grouped_feature, names, subject_id, data] = get_gravity_data(allFeatures, normalize_flag, hand)
+    hand = ''
+    [grouped_feature, names, subject_id, data] = get_gravity_data(allFeatures, normalize_flag, hand, 19)
 
     # Get data seperated by the reaction
     plot_flag = False
-    #reactions_ids = seperate_subjects_by_reaction(data, subject_id, names, plot_flag)
+    # reactions_ids = seperate_subjects_by_reaction(data, subject_id, names, plot_flag)
 
-    reactions_ids = seperate_subjects_by_reaction(data, grouped_feature, normalize_flag, subject_id, names, plot_flag=False)
+    reactions_ids = seperate_subjects_by_reaction(data, grouped_feature, normalize_flag, subject_id, names,
+                                                  plot_flag=False)
 
     # Run PCA
     [principal_components_Df, principal_components] = run_pca_on_df(grouped_feature)
-
+    principal_components_Df.index = names
     # Plot the visualization of the two PCs
-    charectaristcs_PD = pd.read_excel(r"C:\Users\ido.DM\Google Drive\Thesis\Data\Characteristics.xlsx")
-    charectaristcs_PD = charectaristcs_PD.set_index('Ext_name')
+    charectaristcs_PD = pd.read_excel(r"G:\My Drive\Thesis\Data\Characteristics.xlsx")
+    short_name = []
+    for index, row in charectaristcs_PD.iterrows():
+        short_name.append(row['Ext_name'].split('_')[0] + '_' + row['Ext_name'].split('_')[1])
+    charectaristcs_PD.index = short_name  #
     exData = charectaristcs_PD.loc[:, [col for col in charectaristcs_PD.columns if 'PP' in col]]
+    plotPCA.plotPCA2D(principal_components_Df, names, hand[0], exData, "Principal Component Analysis of All Inteneces",
+                      r'G:\My Drive\Thesis\Project\Results\PCA\27Oct2021\PCA_right_hand_dist_and_center_gravity')
 
-    plotPCA.plotPCA2D(principal_components_Df, names, 'r', exData)
+    # Plot areas by groups in PCA dimension
+    [groups, Legend] = split_data_in_pca_dim(principal_components, names,
+                                             type='rectangle', x1_thresh=-1, y1_thresh=-1, x2_thresh=0.9, y2_thresh=0.5)
 
+    mean_data_df = pd.DataFrame(data)
+    mean_data_df.index = names
+    plot_areas_by_groups_pca_dim_single_fid(mean_data_df, subject_id, groups, Legend, normalize_flag)
+
+    plot_areas_by_groups_pca_dim_multiple_fid(grouped_feature, subject_id, groups, Legend, normalize_flag)
+
+    '''
     if hand_to_extract == 'both':
         in_subject_hand_dist = vizualise_pca_and_get_distance(exData, principal_components_Df, subject_id)
         prc_75 = np.percentile(in_subject_hand_dist, 75)
-
-    # Plot areas by grops in PCA dimension
-    [groups, Legend] = split_data_in_pca_dim(principal_components, grouped_feature, names,
-                                             type='rectangle', x1_thresh=-1.5, y1_thresh=-1, x2_thresh=0.9, y2_thresh=0.5)
-
-    plot_areas_by_groups_pca_dim_single_fid(grouped_feature, subject_id, groups, Legend)
-
-    plot_areas_by_groups_pca_dim_multiple_fid(grouped_feature, subject_id, groups, Legend)
+    '''
+    charectaristcs_PD = pd.read_excel(r"G:\My Drive\Thesis\Data\Characteristics.xlsx")
+    charectaristcs_PD = charectaristcs_PD.set_index('Ext_name')
+    exData = charectaristcs_PD.loc[:, [col for col in charectaristcs_PD.columns if 'PP' in col]]
+    if not hand:
+        compare_hand_distances(principal_components_Df, subject_id, names, exData)

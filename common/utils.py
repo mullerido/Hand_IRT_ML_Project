@@ -4,6 +4,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import matplotlib.patheffects as PathEffects
+from scipy import stats
+from scipy.spatial import distance
 
 
 def get_gravity_data(all_features, normlize_flag=False, hand='', t_samples=19):
@@ -46,6 +48,7 @@ def get_gravity_data(all_features, normlize_flag=False, hand='', t_samples=19):
         names.append(ind_name.split('_')[0] + '_' + ind_name.split('_')[1] + '_' + ind_name.split('_')[2][0])
         subject_id.append(ind_name.split('_')[0] + '_' + ind_name.split('_')[1] + '_')
     subject_id = np.unique(subject_id)
+    grouped_feature.index = names
 
     return grouped_feature, names, subject_id, data
 
@@ -103,6 +106,9 @@ def get_hand_fingers_data_relate_to_center(normalize_flag=False, hand=''):
     allingers = ['Thumbs_dist_Intence', 'Thumbs_proxy_Intence', 'Index_dist_Intence', 'Index_proxy_Intence',
                  'Middle_dist_Intence', 'Middle_proxy_Intence', 'Ring_dist_Intence', 'Ring_proxy_Intence',
                  'Pinky_dist_Intence', 'Pinky_proxy_Intence']
+    allingers = ['Thumbs_dist_Intence', 'Index_dist_Intence',
+                 'Middle_dist_Intence', 'Ring_dist_Intence',
+                 'Pinky_dist_Intence']
 
     for file in files_xls:
         print(file)
@@ -195,7 +201,7 @@ def get_labels_by_hands_similarity(all_features, grouped_feature=[], subject_id=
     return labels
 
 
-def get_labels_using_gravity_ratio(data, names):  # , all_features, hand='', t_samples=19):
+def get_labels_using_gravity_ratio(data, names, plot_flag=False):  # , all_features, hand='', t_samples=19):
     # Get the result of the gravity phase
     # normalizeFlag = True
     # [groupedFeature, a, b, data] = get_gravity_data(all_features, normlizeFlag, hand, t_samples)
@@ -212,6 +218,34 @@ def get_labels_using_gravity_ratio(data, names):  # , all_features, hand='', t_s
     labels = pd.DataFrame(0, index=names, columns=['label'])
     for ind, d in enumerate(reactions_ids):
         labels.iloc[ind, 0] = np.where(d)[0][0]
+
+    # Plot the reaction by groups of reactions
+    if plot_flag:
+        rCol = []
+        for ind in range(len(names)):
+            rCol.append('C' + str(ind))
+
+        fig, ax = plt.subplots()
+        plt.title('Group Comparison', fontsize=20)
+        plt.ylabel('Ratio', fontsize=12)
+        plt.xlabel("Index of time", fontsize=12)
+        #grouped_feature_plot = grouped_feature[['r' in s for s in names]]
+
+        groups = [np.where(negative_reaction_ids), np.where(balance_reaction_ids), np.where(positive_reaction_ids)]
+        Legend = ['Negative reaction', 'Balance reaction', 'Possitive reaction']
+        for ind, groupInds in enumerate(groups):
+            if groupInds:
+                groupValues = data[groupInds[0], :]
+                dataByTimes = np.resize(groupValues, (groupValues.shape[0] * 12, np.shape(data)[1]))
+
+                groupMeans = groupValues.mean(axis=0)
+                groupStd = groupValues.std(axis=0)
+                ax.plot(groupMeans, color=rCol[ind])
+                x = np.linspace(0, len(groupStd) - 1, len(groupStd))
+                ax.fill_between(x, groupMeans - groupStd, groupMeans + groupStd, color=rCol[ind], alpha=0.3)
+
+        plt.legend(Legend[0:ind + 1], loc='center left', bbox_to_anchor=(0, 0.9))
+        plt.show()
 
     return labels
 
@@ -269,3 +303,63 @@ def foundTwoHils(array):
     localMaximasInds = localMaximasInds[::-1]
 
     return localMaximasInds
+
+
+def compare_hand_distances(principal_breast_Df, subject_id, names, exData):
+
+    minVal = min(exData.values) * 0.8
+    maxVal = max(exData.values)
+    r = 100 * (exData.values - minVal) / (maxVal - minVal)
+    rDF = pd.DataFrame(data=r, index=exData.index)
+
+    rCol = []
+    for ind in range(len(names)):
+        rCol.append('C' + str(ind))
+
+    in_subject_hand_dist = []
+    between_all_subject_hand_dist = []
+    between_subject_hand_dist = []
+    perm = []
+
+    fig, ax = plt.subplots()
+    for i, s in enumerate(subject_id):
+        is_match = np.where(np.char.find(names, s) == 0)
+        xa = principal_breast_Df.iloc[is_match[0][0], 0]
+        ya = principal_breast_Df.iloc[is_match[0][0], 1]
+        xb = principal_breast_Df.iloc[is_match[0][1], 0]
+        yb = principal_breast_Df.iloc[is_match[0][1], 1]
+
+        relevantR = rDF[[s in t + '_' for t in rDF.index]]
+        ax.scatter(xa, ya, c=rCol[i], linewidths=0.5, edgecolors='r', s=relevantR.values * 6,
+                   alpha=0.5)  # marker=markers[i],
+        plt.text(xa, ya, s.split('_')[1], horizontalalignment='center', verticalalignment='center')
+        ax.scatter(xb, yb, c=rCol[i], linewidths=0.5, edgecolors='g', s=relevantR.values * 6, alpha=0.5)
+        plt.text(xb, yb, s.split('_')[1], horizontalalignment='center', verticalalignment='center')
+        in_subject_hand_dist.append(distance.euclidean((xa, ya), (xb, yb)))
+
+        perm.append([s + s])
+        for j, s_n in enumerate(subject_id):
+            current_match_1 = [s + s_n]
+            current_match_2 = [s_n + s]
+            if not (any(np.char.find(perm, current_match_1) == 0) or any(np.char.find(perm, current_match_2) == 0)):
+                perm.append(current_match_1)
+                s_n_all = [s_n + 'r', s_n + 'l']
+                for hand_i, hand_m in enumerate(s_n_all):
+                    #dist to the right and left hands
+                    xc = principal_breast_Df.loc[hand_m, principal_breast_Df.columns[0]]
+                    yc = principal_breast_Df.loc[hand_m, principal_breast_Df.columns[1]]
+                    between_all_subject_hand_dist.append(distance.euclidean((xa, ya), (xc, yc)))
+                    between_all_subject_hand_dist.append(distance.euclidean((xb, yb), (xc, yc)))
+
+
+        between_subject_hand_dist.append(np.mean(between_all_subject_hand_dist))
+    # ax.legend(names, loc='center left', bbox_to_anchor=(1, 0.5), ncol=3)
+    # Statistics of the difference between hands
+    t, p = stats.ttest_ind(in_subject_hand_dist, between_subject_hand_dist)
+    print('Match hands dist = ' + str(np.round(np.average(in_subject_hand_dist), 4)) + ' + ' + str(
+        np.round(np.nanstd(in_subject_hand_dist), 4)))
+    print('Not match dist = ' + str(np.round(np.average(between_subject_hand_dist), 4)) + ' + ' + str(
+        np.round(np.nanstd(between_subject_hand_dist), 4)))
+    print('p = ' + str(np.round(p, 4)))
+
+    prc_75 = np.percentile(in_subject_hand_dist, 75)

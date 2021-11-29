@@ -108,17 +108,17 @@ def weighed_dist(data, labels, dist_method='euclidean', w=1):
         Calculate the distance matrix of data and apply weight based on the label
     """
     # dist_list = pdist(data, 'euclidean')
-    # dist_sqare = squareform(dist_list)
-    dist_sqare = cdist(data, data, dist_method)
-
+    # dist_square = squareform(dist_list)
+    dist_square = cdist(data, data, dist_method)
     unique_labels = np.unique(labels)
-    for c_l in unique_labels:
-        same_label_ids = np.where(labels == c_l)
-        for r in same_label_ids[0]:
-            for c in same_label_ids[0]:
-                dist_sqare[r, c] = dist_sqare[r, c] * w
+    if not w == 1:
+        for c_l in unique_labels:
+            same_label_ids = np.where(labels == c_l)
+            for r in same_label_ids[0]:
+                for c in same_label_ids[0]:
+                    dist_square[r, c] = dist_square[r, c] * w
 
-    return dist_sqare
+    return dist_square
 
 
 def get_ave_of_k_nearest_data(data_train, data_test, n):
